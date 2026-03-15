@@ -739,31 +739,26 @@ function closeGame() {
 function initGame() {
   if (gameState) { gameState.running = false; }
 
-  // Opponent cups — triangle at top, 6 cups
-  var oppCups = [];
-  var ox = 160, oy = 28;
-  var oppLayout = [[0,0],[1,0],[2,0],[0,1],[1,1],[0,2]];
-  oppLayout.forEach(function(c) {
-    oppCups.push({ x: ox + c[0]*22, y: oy + c[1]*22, hit: false });
-  });
-
-  // Player cups — triangle at bottom
-  var plCups = [];
-  var plx = 240, ply = GH - 72;
-  var plLayout = [[0,0],[1,0],[2,0],[0,-1],[1,-1],[0,-2]];
-  plLayout.forEach(function(c) {
-    plCups.push({ x: plx + c[0]*22, y: ply + c[1]*22, hit: false });
-  });
+  // Cups in first-person screen-space perspective
+  // Triangle with apex pointing toward player: 1 (front) – 2 – 3 (back)
+  var oppCups = [
+    { cx: 218, cy: 160, w: 14, h: 9,  hit: false },  // back row
+    { cx: 240, cy: 160, w: 14, h: 9,  hit: false },
+    { cx: 262, cy: 160, w: 14, h: 9,  hit: false },
+    { cx: 229, cy: 172, w: 16, h: 10, hit: false },  // middle row
+    { cx: 251, cy: 172, w: 16, h: 10, hit: false },
+    { cx: 240, cy: 184, w: 18, h: 11, hit: false },  // front (apex)
+  ];
 
   gameState = {
     running: true,
     score: 0,
     balls: 5,
-    playerX: GW/2 - 10,
+    playerX: GW/2,
     playerVX: 0,
-    ball: null,
+    ball: null,   // { t, dt, startX, startY, endX, endY, targetIdx, active }
     oppCups: oppCups,
-    plCups: plCups,
+    plCups: [],
     particles: [],
     msg: '',
     msgTimer: 0,
@@ -836,40 +831,26 @@ function gameLoop() {
 
 function updateGame(gs) {
   if (gs.phase === 'play') {
-    // Move player
+    // Move aim
     if (gs.keys['ArrowLeft'])  gs.playerVX -= 1.5;
     if (gs.keys['ArrowRight']) gs.playerVX += 1.5;
     gs.playerVX *= 0.7;
     gs.playerX += gs.playerVX;
-    gs.playerX = Math.max(8, Math.min(GW - 36, gs.playerX));
+    gs.playerX = Math.max(160, Math.min(320, gs.playerX));
 
-    // Move ball
+    // Advance ball along arc
     if (gs.ball && gs.ball.active) {
-      gs.ball.x += gs.ball.vx;
-      gs.ball.y += gs.ball.vy;
-      gs.ball.vy += 0.22; // gravity
-
-      // Check cup collisions
-      var hit = false;
-      gs.oppCups.forEach(function(cup) {
-        if (cup.hit || hit) return;
-        if (gs.ball.x + 4 > cup.x && gs.ball.x - 4 < cup.x + 14 &&
-            gs.ball.y + 4 > cup.y && gs.ball.y - 4 < cup.y + 14) {
+      gs.ball.t += 0.038;
+      if (gs.ball.t >= 1.0) {
+        var cup = gs.oppCups[gs.ball.targetIdx];
+        if (!cup.hit && Math.abs(gs.ball.endX - cup.cx) <= cup.w / 2 + 3) {
           cup.hit = true;
-          gs.ball.active = false;
           gs.score += 100;
           gs.msg = 'NICE SHOT!';
           gs.msgTimer = 70;
-          spawnParticles(gs, cup.x + 7, cup.y + 6);
-          hit = true;
+          spawnParticles(gs, cup.cx, cup.cy - cup.h / 2);
           updateGameUI();
-          checkEndCondition(gs);
         }
-      });
-
-      // Out of bounds
-      if (!hit && gs.ball.active &&
-          (gs.ball.y > GH + 30 || gs.ball.y < -50 || gs.ball.x < -30 || gs.ball.x > GW + 30)) {
         gs.ball.active = false;
         gs.ball = null;
         checkEndCondition(gs);
@@ -907,29 +888,24 @@ function throwBall() {
   if (gs.ball && gs.ball.active) return;
   if (gs.balls <= 0) return;
 
-  var startX = gs.playerX + 11;
-  var startY = GH - 108;
-
-  // Pick a target cup (random from remaining)
   var targets = gs.oppCups.filter(function(c) { return !c.hit; });
   if (!targets.length) return;
-  var target = targets[Math.floor(Math.random() * targets.length)];
 
-  // Add some random spread — skill based
-  var spread = (Math.random() - 0.5) * 40;
-  var tx = target.x + 7 + spread;
-  var ty = target.y + 5;
+  // Target the cup closest to player's aim
+  var target = targets.reduce(function(best, c) {
+    return Math.abs(c.cx - gs.playerX) < Math.abs(best.cx - gs.playerX) ? c : best;
+  });
+  var targetIdx = gs.oppCups.indexOf(target);
 
-  var frames = 30;
-  var dx = tx - startX;
-  var dy = ty - startY;
-  // Account for gravity: y = startY + vy*t + 0.5*g*t^2, solve for vy
-  var g = 0.22;
-  var vy = (dy - 0.5 * g * frames * frames) / frames;
-  var vx = dx / frames;
-
+  var spread = (Math.random() - 0.5) * 28;
   gs.balls--;
-  gs.ball = { x: startX, y: startY, vx: vx, vy: vy, active: true };
+  gs.ball = {
+    t: 0,
+    startX: GW / 2, startY: GH - 44,
+    endX: target.cx + spread, endY: target.cy,
+    targetIdx: targetIdx,
+    active: true
+  };
   updateGameUI();
 }
 
@@ -949,124 +925,191 @@ function spawnParticles(gs, x, y) {
 }
 
 function renderGame(gs) {
-  // Background
-  var bg = gctx.createLinearGradient(0, 0, 0, GH);
-  bg.addColorStop(0, '#1a0f28');
-  bg.addColorStop(1, '#2a1808');
-  gctx.fillStyle = bg;
-  gctx.fillRect(0, 0, GW, GH);
+  var VX = GW / 2, VY = 88;  // vanishing point
 
-  // Wall paneling
-  gctx.fillStyle = '#22143a';
-  for (var wx = 0; wx < GW; wx += 40) {
-    gctx.fillRect(wx, 0, 1, GH * 0.55);
+  // ── Ceiling
+  var cg = gctx.createLinearGradient(0, 0, 0, VY);
+  cg.addColorStop(0, '#080414');
+  cg.addColorStop(1, '#16102a');
+  gctx.fillStyle = cg;
+  gctx.fillRect(0, 0, GW, VY);
+
+  // Ceiling light glow
+  var lg = gctx.createRadialGradient(VX, VY - 8, 4, VX, VY - 8, 90);
+  lg.addColorStop(0, '#ffe88044');
+  lg.addColorStop(1, 'transparent');
+  gctx.fillStyle = lg;
+  gctx.fillRect(0, 0, GW, VY);
+
+  // ── Back wall
+  gctx.fillStyle = '#1a1030';
+  gctx.fillRect(0, VY, GW, 72);
+  gctx.fillStyle = '#221840';
+  for (var wi = 0; wi < 6; wi++) { gctx.fillRect(wi * 80, VY, 40, 72); }
+
+  // ── Floor
+  var fg = gctx.createLinearGradient(0, VY + 72, 0, GH);
+  fg.addColorStop(0, '#140a02');
+  fg.addColorStop(1, '#281404');
+  gctx.fillStyle = fg;
+  gctx.fillRect(0, VY + 72, GW, GH - VY - 72);
+
+  // Floor perspective lines
+  gctx.strokeStyle = '#38200e';
+  gctx.lineWidth = 1;
+  [0, 60, 120, 180, 240, 300, 360, 420, 480].forEach(function(nx) {
+    gctx.beginPath();
+    gctx.moveTo(VX, VY + 72);
+    gctx.lineTo(nx, GH);
+    gctx.stroke();
+  });
+  for (var fri = 1; fri <= 3; fri++) {
+    var fy = VY + 72 + fri * (GH - VY - 72) / 4;
+    gctx.beginPath(); gctx.moveTo(0, fy); gctx.lineTo(GW, fy); gctx.stroke();
   }
 
-  // Table
-  var ty = GH * 0.38;
-  var tw = GW - 40;
-  px(gctx, 20, ty, tw, 64, '#1a6622');
-  px(gctx, 20, ty, tw, 3, '#2a9932');
-  px(gctx, 20, ty + 61, tw, 3, '#2a9932');
-  px(gctx, 20, ty, 3, 64, '#2a9932');
-  px(gctx, GW - 23, ty, 3, 64, '#2a9932');
-  // Center line / net
-  px(gctx, GW/2 - 1, ty, 2, 64, '#ffffff88');
-  for (var ny = ty + 4; ny < ty + 64; ny += 4) {
-    px(gctx, GW/2 - 8, ny, 16, 1, '#ffffff22');
+  // ── Table (perspective trapezoid)
+  var tNY = 238, tFY = 152;
+  var tNL = 22, tNR = 458, tFL = 168, tFR = 312;
+
+  gctx.fillStyle = '#1a6622';
+  gctx.beginPath();
+  gctx.moveTo(tNL, tNY); gctx.lineTo(tNR, tNY);
+  gctx.lineTo(tFR, tFY); gctx.lineTo(tFL, tFY);
+  gctx.closePath();
+  gctx.fill();
+
+  // Table border
+  gctx.strokeStyle = '#2a9932';
+  gctx.lineWidth = 2;
+  gctx.beginPath();
+  gctx.moveTo(tNL, tNY); gctx.lineTo(tNR, tNY); gctx.stroke();
+  gctx.lineWidth = 1;
+  gctx.beginPath();
+  gctx.moveTo(tFL, tFY); gctx.lineTo(tFR, tFY);
+  gctx.moveTo(tNL, tNY); gctx.lineTo(tFL, tFY);
+  gctx.moveTo(tNR, tNY); gctx.lineTo(tFR, tFY);
+  gctx.stroke();
+
+  // Table near face
+  gctx.fillStyle = '#0f3a14';
+  gctx.fillRect(tNL, tNY, tNR - tNL, 20);
+
+  // Net (midpoint of table depth)
+  var nY = tFY + 0.5 * (tNY - tFY);
+  var nL = tFL + 0.5 * (tNL - tFL);
+  var nR = tFR + 0.5 * (tNR - tFR);
+  gctx.strokeStyle = '#ffffffaa';
+  gctx.lineWidth = 3;
+  gctx.beginPath(); gctx.moveTo(nL, nY); gctx.lineTo(nR, nY); gctx.stroke();
+  gctx.lineWidth = 1;
+  gctx.strokeStyle = '#ffffff44';
+  for (var ni = 0; ni <= 7; ni++) {
+    var nx = nL + ni * (nR - nL) / 7;
+    gctx.beginPath(); gctx.moveTo(nx, nY); gctx.lineTo(nx, nY - 9); gctx.stroke();
   }
 
-  // Table legs
-  px(gctx, 28,      ty + 64, 6, 28, '#555');
-  px(gctx, GW - 34, ty + 64, 6, 28, '#555');
-  px(gctx, 28,      ty + 74, GW - 60, 3, '#444');
-
-  // Floor
-  px(gctx, 0, ty + 92, GW, GH - ty - 92, '#3a2010');
-  gctx.fillStyle = '#4a2a14';
-  for (var fx = 0; fx < GW; fx += 20) { gctx.fillRect(fx, ty + 92, 1, GH - ty - 92); }
-  for (var fy = ty + 92; fy < GH; fy += 20) { gctx.fillRect(0, fy, GW, 1); }
-
-  // Opponent cups
-  gs.oppCups.forEach(function(c) {
-    if (c.hit) {
-      // empty ring
-      gctx.strokeStyle = '#11551144';
+  // ── Cups (perspective positions)
+  gs.oppCups.forEach(function(cup) {
+    var x = cup.cx - cup.w / 2, y = cup.cy - cup.h;
+    if (cup.hit) {
+      gctx.strokeStyle = '#11551166';
       gctx.lineWidth = 1;
-      gctx.strokeRect(c.x + 1, c.y + 1, 12, 8);
+      gctx.strokeRect(x + 1, y + 1, cup.w - 2, cup.h - 2);
       return;
     }
-    px(gctx, c.x, c.y, 14, 10, '#cc2222');
-    px(gctx, c.x + 2, c.y, 10, 3, '#ff5555');
-    px(gctx, c.x + 1, c.y + 8, 12, 2, '#aa1111');
-    px(gctx, c.x + 4, c.y + 2, 3, 2, '#ff9999');
+    px(gctx, x, y, cup.w, cup.h, '#cc2222');
+    px(gctx, x + 2, y, cup.w - 4, Math.ceil(cup.h * 0.35), '#ff5555');
+    px(gctx, x + 2, y + cup.h - 2, cup.w - 4, 2, '#aa1111');
+    px(gctx, x + 3, y + 2, 3, 2, '#ff9999');
   });
 
-  // Player side cups
-  gs.plCups.forEach(function(c) {
-    px(gctx, c.x, c.y, 14, 10, '#2255bb');
-    px(gctx, c.x + 2, c.y, 10, 3, '#4477ff');
-    px(gctx, c.x + 1, c.y + 8, 12, 2, '#113399');
-    px(gctx, c.x + 4, c.y + 2, 3, 2, '#88aaff');
-  });
-
-  // Player character
-  drawGameDude(gctx, gs.playerX, GH - 112);
-
-  // Aim dotted line (when no ball in flight)
+  // ── Aim line + crosshair
   if (gs.phase === 'play' && (!gs.ball || !gs.ball.active) && gs.balls > 0) {
-    var targets = gs.oppCups.filter(function(c) { return !c.hit; });
-    if (targets.length) {
-      var t = targets[0];
-      gctx.setLineDash([3, 4]);
-      gctx.strokeStyle = '#ffffff22';
-      gctx.lineWidth = 1;
-      gctx.beginPath();
-      gctx.moveTo(gs.playerX + 11, GH - 108);
-      gctx.lineTo(t.x + 7, t.y + 5);
-      gctx.stroke();
-      gctx.setLineDash([]);
-    }
+    gctx.setLineDash([4, 5]);
+    gctx.strokeStyle = '#ffffff44';
+    gctx.lineWidth = 1;
+    gctx.beginPath();
+    gctx.moveTo(VX, GH - 44);
+    gctx.lineTo(gs.playerX, 184);
+    gctx.stroke();
+    gctx.setLineDash([]);
+    gctx.strokeStyle = '#ffdd57cc';
+    gctx.lineWidth = 1;
+    gctx.beginPath();
+    gctx.moveTo(gs.playerX - 7, 184); gctx.lineTo(gs.playerX + 7, 184);
+    gctx.moveTo(gs.playerX, 177);     gctx.lineTo(gs.playerX, 191);
+    gctx.stroke();
   }
 
-  // Ball in flight
+  // ── Ball in flight
   if (gs.ball && gs.ball.active) {
+    var bt = gs.ball.t;
+    var bx = gs.ball.startX + (gs.ball.endX - gs.ball.startX) * bt;
+    var by = gs.ball.startY + (gs.ball.endY - gs.ball.startY) * bt - 78 * Math.sin(Math.PI * bt);
+    var br = Math.max(3, Math.round(10 * (1 - bt) + 4 * bt));
     gctx.fillStyle = '#f0f0f0';
-    gctx.beginPath();
-    gctx.arc(gs.ball.x, gs.ball.y, 5, 0, Math.PI * 2);
-    gctx.fill();
-    gctx.fillStyle = '#cccccc';
-    gctx.beginPath();
-    gctx.arc(gs.ball.x - 1, gs.ball.y - 1, 2, 0, Math.PI * 2);
-    gctx.fill();
+    gctx.beginPath(); gctx.arc(bx, by, br, 0, Math.PI * 2); gctx.fill();
+    gctx.fillStyle = '#ffffffdd';
+    gctx.beginPath(); gctx.arc(bx - br * 0.3, by - br * 0.35, Math.max(1, br * 0.35), 0, Math.PI * 2); gctx.fill();
   }
 
-  // Particles
+  // ── Player arms (first-person view)
+  // Left sleeve
+  gctx.fillStyle = '#3366cc';
+  gctx.beginPath();
+  gctx.moveTo(0, GH); gctx.lineTo(110, GH);
+  gctx.lineTo(VX - 18, GH - 52); gctx.lineTo(VX - 30, GH - 38);
+  gctx.closePath(); gctx.fill();
+  // Left forearm/wrist
+  gctx.fillStyle = '#f0c888';
+  gctx.beginPath();
+  gctx.moveTo(76, GH); gctx.lineTo(110, GH);
+  gctx.lineTo(VX - 14, GH - 52); gctx.lineTo(VX - 26, GH - 42);
+  gctx.closePath(); gctx.fill();
+  // Right sleeve
+  gctx.fillStyle = '#3366cc';
+  gctx.beginPath();
+  gctx.moveTo(GW, GH); gctx.lineTo(GW - 110, GH);
+  gctx.lineTo(VX + 18, GH - 52); gctx.lineTo(VX + 30, GH - 38);
+  gctx.closePath(); gctx.fill();
+  // Right forearm/wrist
+  gctx.fillStyle = '#f0c888';
+  gctx.beginPath();
+  gctx.moveTo(GW - 76, GH); gctx.lineTo(GW - 110, GH);
+  gctx.lineTo(VX + 14, GH - 52); gctx.lineTo(VX + 26, GH - 42);
+  gctx.closePath(); gctx.fill();
+
+  // Ball in hand (when not in flight)
+  if (!gs.ball || !gs.ball.active) {
+    gctx.fillStyle = '#f0f0f0';
+    gctx.beginPath(); gctx.arc(VX, GH - 46, 10, 0, Math.PI * 2); gctx.fill();
+    gctx.fillStyle = '#ffffffcc';
+    gctx.beginPath(); gctx.arc(VX - 3, GH - 50, 4, 0, Math.PI * 2); gctx.fill();
+  }
+
+  // ── Particles
   gs.particles.forEach(function(p) {
     gctx.fillStyle = p.color;
     gctx.fillRect(p.x - 2, p.y - 2, 4, 4);
   });
 
-  // Message
+  // ── Message
   if (gs.msgTimer > 0 && gs.phase === 'play') {
     gctx.fillStyle = '#00000099';
     gctx.fillRect(GW/2 - 80, GH/2 - 20, 160, 32);
     drawPixelText(gctx, gs.msg, GW/2 - gs.msg.length * 4, GH/2 - 14, '#ffdd57', 2);
   }
 
-  // End screen
+  // ── End screen
   if (gs.phase === 'win' || gs.phase === 'lose') {
     gctx.fillStyle = '#000000bb';
     gctx.fillRect(0, 0, GW, GH);
-
     var title = gs.phase === 'win' ? 'YOU WIN!' : 'GAME OVER';
     var titleColor = gs.phase === 'win' ? '#ffdd57' : '#ff4444';
     drawPixelText(gctx, title, GW/2 - title.length * 5, GH/2 - 40, titleColor, 3);
-
     var scoreStr = 'SCORE: ' + gs.score;
     drawPixelText(gctx, scoreStr, GW/2 - scoreStr.length * 3, GH/2 + 10, '#ffffff', 2);
-
-    // Replay button
     gctx.fillStyle = '#224422';
     gctx.fillRect(GW/2 - 70, GH - 55, 140, 28);
     gctx.strokeStyle = '#44aa44';
@@ -1075,50 +1118,11 @@ function renderGame(gs) {
     drawPixelText(gctx, 'PLAY AGAIN', GW/2 - 30, GH - 48, '#88ff88', 1);
   }
 
-  // HUD cups remaining
+  // ── HUD
   var remaining = gs.oppCups.filter(function(c) { return !c.hit; }).length;
   drawPixelText(gctx, 'CUPS: ' + remaining, 8, 8, '#aaddff', 1);
 }
 
-function drawGameDude(ctx, x, y) {
-  // Mini dude (character 1 — blue shirt)
-  var skin = '#f5d5b0', shirt = '#3366cc', pants = '#334488';
-  // shadow
-  ctx.fillStyle = '#00000033';
-  ctx.beginPath();
-  ctx.ellipse(x + 11, y + 44, 10, 3, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // legs
-  px(ctx, x + 3,  y + 30, 6, 12, pants);
-  px(ctx, x + 11, y + 30, 6, 12, pants);
-  // shoes
-  px(ctx, x + 1,  y + 40, 8, 5, '#221100');
-  px(ctx, x + 11, y + 40, 8, 5, '#221100');
-  // body
-  px(ctx, x + 1, y + 14, 20, 18, shirt);
-  // arms
-  px(ctx, x - 4, y + 16, 7, 10, skin);
-  px(ctx, x - 4, y + 16, 6, 3, shirt);
-  px(ctx, x + 19, y + 12, 7, 10, skin);
-  px(ctx, x + 19, y + 12, 6, 3, shirt);
-  // neck
-  px(ctx, x + 8, y + 10, 6, 6, skin);
-  // head
-  px(ctx, x + 2, y, 18, 14, skin);
-  // hair
-  px(ctx, x + 2, y, 18, 4, '#221100');
-  px(ctx, x + 2, y, 3, 10, '#221100');
-  px(ctx, x + 17, y, 3, 10, '#221100');
-  // eyes
-  px(ctx, x + 5,  y + 5, 3, 2, '#221100');
-  px(ctx, x + 13, y + 5, 3, 2, '#221100');
-  px(ctx, x + 5,  y + 5, 1, 1, '#fff');
-  px(ctx, x + 14, y + 5, 1, 1, '#fff');
-  // smile
-  px(ctx, x + 5,  y + 9, 2, 2, '#cc5533');
-  px(ctx, x + 7,  y + 11, 8, 2, '#cc5533');
-  px(ctx, x + 15, y + 9, 2, 2, '#cc5533');
-}
 
 function updateGameUI() {
   if (!gameState) return;
