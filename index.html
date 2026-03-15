@@ -529,19 +529,21 @@ function drawPongTable(ctx, x, y) {
   cups_pl.forEach(function(c) { drawCupAt(ctx, c[0], c[1]); });
 
   // HOT CUP sign
-  var sx = x + TW/2 - 28, sy = y + TH + 3;
-  hotCupRect = { x: sx, y: sy, w: 56, h: 16 };
+  var sw = 84, sh = 26;
+  var sx = x + TW/2 - sw/2, sy = y + TH + 4;
+  hotCupRect = { x: sx, y: sy, w: sw, h: sh };
 
   // String from table
-  px(ctx, x + TW/2 - 1, y + TH, 2, 5, '#aa8844');
+  px(ctx, x + TW/2 - 1, y + TH, 2, 6, '#aa8844');
 
   // Sign board
-  px(ctx, sx,     sy,     56, 16, '#c8a820');
-  px(ctx, sx + 1, sy + 1, 54, 14, '#f0d840');
-  px(ctx, sx + 2, sy + 2, 52, 12, '#ffe850');
+  px(ctx, sx - 2, sy - 2, sw + 4, sh + 4, '#884400');
+  px(ctx, sx,     sy,     sw, sh, '#c8a820');
+  px(ctx, sx + 1, sy + 1, sw - 2, sh - 2, '#f0d840');
+  px(ctx, sx + 2, sy + 2, sw - 4, sh - 4, '#ffe850');
 
-  // "HOT CUP" text
-  drawPixelText(ctx, 'HOT CUP', sx + 4, sy + 4, '#8b0000', 1);
+  // "HOT CUP" text (scale 2)
+  drawPixelText(ctx, 'HOT CUP', sx + 5, sy + 6, '#8b0000', 2);
 }
 
 function drawCupAt(ctx, x, y) {
