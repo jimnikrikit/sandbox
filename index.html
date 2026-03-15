@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrandySlime</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0a0a1a;
+      color: #e8d48b;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+    }
+    h1 {
+      font-size: 3rem;
+      text-shadow: 0 0 20px #e8d48b88;
+      letter-spacing: 0.2em;
+    }
+    p {
+      font-size: 1.2rem;
+      color: #aaa;
+      margin-top: 0.5rem;
+    }
+    .slime {
+      font-size: 4rem;
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-16px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="slime">🟢</div>
+  <h1>Hello World</h1>
+  <p>BrandySlime — a game is coming...</p>
+</body>
+</html>
