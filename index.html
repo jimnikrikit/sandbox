@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upstate Diner Dash</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a0a00;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #f5c842;
+    }
+    h1 {
+      font-size: 1.4rem;
+      letter-spacing: 0.2em;
+      margin-bottom: 8px;
+      color: #f5c842;
+      text-shadow: 0 0 10px #f5c842aa;
+    }
+    p.sub {
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-bottom: 12px;
+      letter-spacing: 0.1em;
+    }
+    canvas {
+      border: 3px solid #f5c842;
+      box-shadow: 0 0 30px #f5c84255;
+      display: block;
+    }
+    .controls {
+      margin-top: 10px;
+      font-size: 0.7rem;
+      color: #888;
+      letter-spacing: 0.08em;
+    }
+  </style>
+</head>
+<body>
+  <h1>MEL'S SILVER SPOON DINER</h1>
+  <p class="sub">— upstate new york, route 9 —</p>
+  <canvas id="c" width="800" height="400"></canvas>
+  <p class="controls">ARROW KEYS or A/D to move &nbsp;|&nbsp; SPACE or UP to jump &nbsp;|&nbsp; Double-jump enabled</p>
+
+  <script>
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // ── Palette ──────────────────────────────────────────
+  const COL = {
+    sky:      '#2b1a0e',
+    floor:    '#5c3317',
+    counter:  '#8b5e3c',
+    chrome:   '#c9c9c9',
+    stool:    '#d43f3f',
+    tile:     '#f2e8d5',
+    tileDark: '#d9cdb8',
+    neon:     '#f5c842',
+    neonGlow: '#f5c84288',
+    window:   '#1a3a5c',
+    windowFr: '#8b5e3c',
+    sign:     '#d43f3f',
+    player:   '#4a9eff',
+    playerHd: '#ffe0b2',
+    token:    '#ffd700',
+    platform: '#7a4f2e',
+  };
+
+  // ── World ─────────────────────────────────────────────
+  const W = canvas.width, H = canvas.height;
+  const GRAVITY = 0.55;
+  const JUMP_FORCE = -13;
+  const SPEED = 4;
+
+  // Platforms: [x, y, w, h, label]
+  const platforms = [
+    // ground
+    { x: 0,   y: 340, w: 800, h: 60, color: COL.floor },
+    // counter
+    { x: 80,  y: 270, w: 220, h: 18, color: COL.counter },
+    // stools
+    { x: 95,  y: 300, w: 30,  h: 40, color: COL.stool, isStool: true },
+    { x: 145, y: 300, w: 30,  h: 40, color: COL.stool, isStool: true },
+    { x: 195, y: 300, w: 30,  h: 40, color: COL.stool, isStool: true },
+    { x: 245, y: 300, w: 30,  h: 40, color: COL.stool, isStool: true },
+    // booth shelf
+    { x: 480, y: 240, w: 160, h: 16, color: COL.counter },
+    // pie display
+    { x: 380, y: 285, w: 80,  h: 55, color: '#c9a87c' },
+    // high shelf
+    { x: 580, y: 175, w: 140, h: 14, color: COL.counter },
+    // small crate
+    { x: 650, y: 310, w: 50,  h: 30, color: COL.platform },
+  ];
+
+  // Collectible tokens
+  let tokens = [
+    { x: 110, y: 250, collected: false },
+    { x: 160, y: 250, collected: false },
+    { x: 510, y: 220, collected: false },
+    { x: 560, y: 220, collected: false },
+    { x: 610, y: 155, collected: false },
+    { x: 660, y: 155, collected: false },
+    { x: 400, y: 315, collected: false },
+  ];
+  let score = 0;
+
+  // Player
+  const player = {
+    x: 60, y: 280,
+    w: 22, h: 30,
+    vx: 0, vy: 0,
+    onGround: false,
+    jumpsLeft: 2,
+    facing: 1,
+  };
+
+  // Input
+  const keys = {};
+  document.addEventListener('keydown', e => { keys[e.code] = true; });
+  document.addEventListener('keyup',   e => { keys[e.code] = false; });
+
+  // ── Physics helpers ───────────────────────────────────
+  function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+    return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+  }
+
+  function resolveCollisions() {
+    player.onGround = false;
+    for (const p of platforms) {
+      if (!rectOverlap(player.x, player.y, player.w, player.h, p.x, p.y, p.w, p.h)) continue;
+      // Only land on tops of solid surfaces (not stool legs — treat them as decoration)
+      if (p.isStool) continue;
+
+      const overlapBottom = (player.y + player.h) - p.y;
+      const overlapTop    = (p.y + p.h) - player.y;
+      const overlapLeft   = (player.x + player.w) - p.x;
+      const overlapRight  = (p.x + p.w) - player.x;
+      const minOverlap = Math.min(overlapBottom, overlapTop, overlapLeft, overlapRight);
+
+      if (minOverlap === overlapBottom && player.vy >= 0) {
+        player.y = p.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+        player.jumpsLeft = 2;
+      } else if (minOverlap === overlapTop && player.vy < 0) {
+        player.y = p.y + p.h;
+        player.vy = 0;
+      } else if (minOverlap === overlapLeft) {
+        player.x = p.x - player.w;
+        player.vx = 0;
+      } else if (minOverlap === overlapRight) {
+        player.x = p.x + p.w;
+        player.vx = 0;
+      }
+    }
+  }
+
+  // ── Drawing helpers ───────────────────────────────────
+  function drawBackground() {
+    // Sky / wall
+    ctx.fillStyle = COL.sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // Tile floor pattern
+    for (let tx = 0; tx < W; tx += 20) {
+      for (let ty = 340; ty < H; ty += 20) {
+        ctx.fillStyle = (Math.floor(tx/20 + ty/20)) % 2 === 0 ? COL.tile : COL.tileDark;
+        ctx.fillRect(tx, ty, 20, 20);
+      }
+    }
+
+    // Window
+    ctx.fillStyle = COL.window;
+    ctx.fillRect(310, 60, 160, 120);
+    ctx.strokeStyle = COL.windowFr;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(310, 60, 160, 120);
+    // Window cross
+    ctx.beginPath();
+    ctx.moveTo(390, 60); ctx.lineTo(390, 180);
+    ctx.moveTo(310, 120); ctx.lineTo(470, 120);
+    ctx.stroke();
+    // Night sky through window
+    for (let s = 0; s < 12; s++) {
+      const sx = 318 + Math.sin(s * 137) * 60 + 60;
+      const sy = 68 + Math.cos(s * 97) * 20 + 20;
+      if (sx > 315 && sx < 465 && sy > 65 && sy < 175) {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(sx, sy, 2, 2);
+      }
+    }
+
+    // Neon sign
+    ctx.save();
+    ctx.shadowColor = COL.neon;
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = COL.sign;
+    ctx.fillRect(30, 30, 240, 40);
+    ctx.fillStyle = COL.neon;
+    ctx.font = 'bold 22px "Courier New"';
+    ctx.textAlign = 'center';
+    ctx.fillText("MEL'S SILVER SPOON", 150, 57);
+    ctx.restore();
+
+    // Jukebox (right side)
+    ctx.fillStyle = '#3a1a0a';
+    ctx.fillRect(720, 200, 70, 140);
+    ctx.fillStyle = '#c94040';
+    ctx.fillRect(725, 205, 60, 50);
+    ctx.fillStyle = COL.neon;
+    ctx.fillRect(728, 210, 54, 8);
+    ctx.fillRect(728, 222, 54, 4);
+    ctx.fillRect(728, 230, 54, 4);
+    ctx.fillStyle = '#0a1a2a';
+    ctx.beginPath();
+    ctx.arc(755, 270, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Hanging lamp
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(390, 0); ctx.lineTo(390, 50); ctx.stroke();
+    ctx.fillStyle = COL.neon;
+    ctx.beginPath();
+    ctx.ellipse(390, 55, 22, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.shadowColor = '#ffe08888';
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = '#ffe088';
+    ctx.beginPath();
+    ctx.ellipse(390, 60, 15, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPlatforms() {
+    for (const p of platforms) {
+      if (p.isStool) {
+        // Draw stool: leg + seat
+        ctx.fillStyle = COL.chrome;
+        ctx.fillRect(p.x + 10, p.y, 10, p.h); // leg
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.ellipse(p.x + 15, p.y, 18, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.y === 340) {
+        // ground — drawn in background
+      } else {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        // Chrome edge
+        ctx.fillStyle = COL.chrome;
+        ctx.fillRect(p.x, p.y, p.w, 4);
+      }
+    }
+
+    // Pie display case detail
+    ctx.fillStyle = '#e8d0a0';
+    ctx.fillRect(385, 290, 70, 45);
+    ctx.strokeStyle = '#c9a87c';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(385, 290, 70, 45);
+    // Pie slice
+    ctx.fillStyle = '#c95b2a';
+    ctx.beginPath();
+    ctx.moveTo(420, 320);
+    ctx.arc(420, 320, 18, -0.5, Math.PI + 0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#f5c842';
+    ctx.fillRect(408, 308, 24, 5);
+  }
+
+  function drawTokens() {
+    const t = Date.now() / 400;
+    tokens.forEach(tok => {
+      if (tok.collected) return;
+      const bob = Math.sin(t + tok.x) * 3;
+      ctx.save();
+      ctx.shadowColor = COL.token;
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = COL.token;
+      ctx.beginPath();
+      ctx.arc(tok.x, tok.y + bob, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff8';
+      ctx.beginPath();
+      ctx.arc(tok.x - 2, tok.y + bob - 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function drawPlayer() {
+    const { x, y, w, h, facing } = player;
+    ctx.save();
+    ctx.translate(x + w/2, y + h/2);
+    if (facing < 0) ctx.scale(-1, 1);
+
+    // Body
+    ctx.fillStyle = COL.player;
+    ctx.fillRect(-w/2, -h/2 + 8, w, h - 8);
+
+    // Head
+    ctx.fillStyle = COL.playerHd;
+    ctx.fillRect(-w/2 + 2, -h/2, w - 4, 14);
+
+    // Eye
+    ctx.fillStyle = '#333';
+    ctx.fillRect(w/2 - 8, -h/2 + 4, 4, 4);
+
+    // Apron (diner theme!)
+    ctx.fillStyle = '#fff8';
+    ctx.fillRect(-w/2 + 4, -h/2 + 16, w - 8, h - 22);
+
+    ctx.restore();
+  }
+
+  function drawHUD() {
+    ctx.fillStyle = '#000000aa';
+    ctx.fillRect(0, 0, W, 28);
+    ctx.fillStyle = COL.neon;
+    ctx.font = 'bold 14px "Courier New"';
+    ctx.textAlign = 'left';
+    ctx.fillText(`TOKENS: ${score} / ${tokens.length}`, 12, 18);
+    ctx.textAlign = 'center';
+    if (score === tokens.length) {
+      ctx.save();
+      ctx.shadowColor = COL.neon;
+      ctx.shadowBlur = 20;
+      ctx.fillText("★  ALL MEMORIES RESTORED! YOU WIN!  ★", W/2, 18);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#888';
+      ctx.fillText('UPSTATE DINER DASH  —  hello world build', W/2, 18);
+    }
+    ctx.textAlign = 'right';
+    ctx.fillStyle = COL.neon;
+    ctx.fillText('♪ jukebox jazz', W - 12, 18);
+  }
+
+  // ── Jump handler ──────────────────────────────────────
+  let jumpPressed = false;
+  document.addEventListener('keydown', e => {
+    if ((e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') && !jumpPressed) {
+      jumpPressed = true;
+      if (player.jumpsLeft > 0) {
+        player.vy = JUMP_FORCE;
+        player.jumpsLeft--;
+      }
+    }
+  });
+  document.addEventListener('keyup', e => {
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') jumpPressed = false;
+  });
+
+  // ── Game loop ─────────────────────────────────────────
+  let last = 0;
+  function loop(ts) {
+    const dt = Math.min((ts - last) / 16.67, 3);
+    last = ts;
+
+    // Input
+    player.vx = 0;
+    if (keys['ArrowLeft']  || keys['KeyA']) { player.vx = -SPEED; player.facing = -1; }
+    if (keys['ArrowRight'] || keys['KeyD']) { player.vx =  SPEED; player.facing =  1; }
+
+    // Physics
+    player.vy += GRAVITY * dt;
+    player.x  += player.vx * dt;
+    player.y  += player.vy * dt;
+
+    // Bounds
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.w > W) player.x = W - player.w;
+    if (player.y + player.h > H) { player.y = H - player.h; player.vy = 0; player.onGround = true; player.jumpsLeft = 2; }
+
+    resolveCollisions();
+
+    // Token collection
+    tokens.forEach(tok => {
+      if (!tok.collected && Math.abs(player.x + player.w/2 - tok.x) < 18 && Math.abs(player.y + player.h/2 - tok.y) < 18) {
+        tok.collected = true;
+        score++;
+      }
+    });
+
+    // Draw
+    drawBackground();
+    drawPlatforms();
+    drawTokens();
+    drawPlayer();
+    drawHUD();
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
