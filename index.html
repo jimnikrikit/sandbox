@@ -314,6 +314,10 @@ function drawScene() {
     px(ctx, gx, H * 0.83, 1, 4, '#3a7a22');
   }
 
+  // Deer on the lawn
+  drawDeer(ctx, 32,  440, false);  // left deer, facing right
+  drawDeer(ctx, 556, 436, true);   // right deer, facing left
+
   // Deck support columns (second floor overhang down to ground)
   px(ctx, 108, 279, 12, 120, '#9a7040');
   px(ctx, 238, 279, 12, 120, '#9a7040');
@@ -568,6 +572,48 @@ function drawDudes(ctx) {
   drawDude(ctx, 200, 209, '#f0c8a0', '#cc3322', '#882211', false, null);       // white, red shirt (bald)
   drawDude(ctx, 408, 208, '#7a4828', '#228844', '#115522', true,  '#110500');  // Sri Lankan, green
   drawDude(ctx, 492, 211, '#f2cfa8', '#ddaa22', '#997711', false, '#994400');  // white, orange hair
+}
+
+function drawDeer(ctx, x, y, flip) {
+  // x,y = bottom-left, y = hoof level; flip=true faces left
+  var W = 38;
+  function d(dx, dy, w, h, col) {
+    px(ctx, x + (flip ? W - dx - w : dx), y + dy, w, h, col);
+  }
+  // Legs
+  d(4,  -15, 4, 15, '#7a4a28');
+  d(11, -15, 4, 15, '#7a4a28');
+  d(22, -15, 4, 15, '#7a4a28');
+  d(29, -15, 4, 15, '#7a4a28');
+  // Hooves
+  d(4,  -4, 4, 4, '#2a1800');
+  d(11, -4, 4, 4, '#2a1800');
+  d(22, -4, 4, 4, '#2a1800');
+  d(29, -4, 4, 4, '#2a1800');
+  // Body
+  d(2, -28, 34, 14, '#c8784a');
+  d(2, -28, 34,  3, '#d8966a');  // top highlight
+  // White rump
+  d(2, -26, 6, 9, '#f0ede0');
+  // Neck
+  d(25, -38,  7, 11, '#c8784a');
+  // Head
+  d(23, -47, 13, 10, '#c8784a');
+  // Snout
+  d(34, -43,  5,  5, '#b86840');
+  d(36, -41,  3,  2, '#221100');  // nostril
+  // Eye
+  d(26, -45,  3,  3, '#221100');
+  d(27, -45,  1,  1, '#ffffff');
+  // Ear
+  d(21, -52,  5,  7, '#c8784a');
+  d(22, -50,  2,  4, '#e8a070');
+  // Antlers
+  d(25, -62,  2, 10, '#6b3a1f');  // main stem
+  d(20, -60,  5,  2, '#6b3a1f');  // left branch
+  d(27, -57,  5,  2, '#6b3a1f');  // right branch
+  d(19, -64,  2,  5, '#6b3a1f');  // left tine up
+  d(28, -62,  2,  5, '#6b3a1f');  // right tine up
 }
 
 function drawDude(ctx, x, y, skin, shirt, pants, isSriLankan, hairColor) {
