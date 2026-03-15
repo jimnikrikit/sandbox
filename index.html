@@ -1,411 +1,1071 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Upstate Diner Dash</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #1a0a00;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      font-family: 'Courier New', monospace;
-      color: #f5c842;
-    }
-    h1 {
-      font-size: 1.4rem;
-      letter-spacing: 0.2em;
-      margin-bottom: 8px;
-      color: #f5c842;
-      text-shadow: 0 0 10px #f5c842aa;
-    }
-    p.sub {
-      font-size: 0.75rem;
-      color: #aaa;
-      margin-bottom: 12px;
-      letter-spacing: 0.1em;
-    }
-    canvas {
-      border: 3px solid #f5c842;
-      box-shadow: 0 0 30px #f5c84255;
-      display: block;
-    }
-    .controls {
-      margin-top: 10px;
-      font-size: 0.7rem;
-      color: #888;
-      letter-spacing: 0.08em;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Lodge — Los Altos Hills</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; image-rendering: pixelated; }
+
+  body {
+    background: #0a0a1a;
+    font-family: 'Press Start 2P', monospace;
+    color: #fff;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  header {
+    text-align: center;
+    padding: 24px 16px 8px;
+    background: linear-gradient(180deg, #0a0a1a 0%, transparent 100%);
+    position: relative;
+    z-index: 2;
+  }
+
+  header h1 {
+    font-size: clamp(14px, 3vw, 22px);
+    color: #ffdd57;
+    text-shadow: 3px 3px #c8a000, 0 0 20px #ffaa00;
+    letter-spacing: 2px;
+  }
+
+  header p {
+    font-size: clamp(7px, 1.5vw, 10px);
+    color: #aad4ff;
+    margin-top: 10px;
+    opacity: 0.8;
+  }
+
+  #scene-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 16px;
+    position: relative;
+  }
+
+  canvas#scene {
+    display: block;
+    image-rendering: pixelated;
+    cursor: default;
+    border: 4px solid #2a2a4a;
+    box-shadow: 0 0 40px #3344aa88;
+    max-width: 100%;
+  }
+
+  #game-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #000000cc;
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  #game-overlay.active { display: flex; }
+
+  #game-wrap {
+    position: relative;
+    border: 4px solid #ffdd57;
+    box-shadow: 0 0 30px #ffaa00;
+  }
+
+  canvas#game {
+    display: block;
+    image-rendering: pixelated;
+    max-width: 95vw;
+  }
+
+  #game-ui {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: #111;
+    font-size: 9px;
+    color: #ffdd57;
+    gap: 24px;
+  }
+
+  #close-game {
+    position: absolute;
+    top: -14px;
+    right: -14px;
+    background: #cc2222;
+    color: #fff;
+    border: 3px solid #ff4444;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+  }
+  #close-game:hover { background: #ff2222; }
+
+  #instructions {
+    max-width: 600px;
+    font-size: 8px;
+    color: #aad4ff;
+    text-align: center;
+    padding: 12px;
+    background: #111;
+    border: 2px solid #2a2a4a;
+    margin-top: 8px;
+  }
+
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 8px;
+    color: #445566;
+  }
+
+  #hint {
+    font-size: 8px;
+    color: #ffdd57;
+    text-align: center;
+    padding: 6px;
+    animation: blink 1.4s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
 </head>
 <body>
-  <h1>MEL'S SILVER SPOON DINER</h1>
-  <p class="sub">— upstate new york, route 9 —</p>
-  <canvas id="c" width="800" height="400"></canvas>
-  <p class="controls">ARROW KEYS or A/D to move &nbsp;|&nbsp; SPACE or UP to jump &nbsp;|&nbsp; Double-jump enabled</p>
 
-  <script>
-  const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d');
+<header>
+  <h1>★ THE LODGE ★</h1>
+  <p>Los Altos Hills, CA &nbsp;|&nbsp; A Home. A Legend.</p>
+</header>
 
-  // ── Palette ──────────────────────────────────────────
-  const COL = {
-    sky:      '#2b1a0e',
-    floor:    '#5c3317',
-    counter:  '#8b5e3c',
-    chrome:   '#c9c9c9',
-    stool:    '#d43f3f',
-    tile:     '#f2e8d5',
-    tileDark: '#d9cdb8',
-    neon:     '#f5c842',
-    neonGlow: '#f5c84288',
-    window:   '#1a3a5c',
-    windowFr: '#8b5e3c',
-    sign:     '#d43f3f',
-    player:   '#4a9eff',
-    playerHd: '#ffe0b2',
-    token:    '#ffd700',
-    platform: '#7a4f2e',
+<div id="scene-wrap">
+  <canvas id="scene" width="640" height="480"></canvas>
+</div>
+<div id="hint">[ tap the HOT CUP sign to unlock a secret game ]</div>
+
+<div id="game-overlay">
+  <div id="game-wrap">
+    <button id="close-game" onclick="closeGame()">X</button>
+    <canvas id="game" width="480" height="320"></canvas>
+    <div id="game-ui">
+      <span id="score-display">SCORE: 0</span>
+      <span id="shots-display">BALLS: 5</span>
+      <span id="msg-display">&nbsp;</span>
+    </div>
+  </div>
+  <div id="instructions">
+    ARROW KEYS / TAP = MOVE &nbsp;|&nbsp; SPACE / TAP = THROW<br><br>
+    Sink all cups to win!
+  </div>
+</div>
+
+<footer>
+  <p>Built with love and pixels &nbsp;|&nbsp; The Lodge Forever</p>
+</footer>
+
+<script>
+// ─────────────────────────────────────────
+//  PALETTE & PIXEL HELPERS
+// ─────────────────────────────────────────
+const C = document.getElementById('scene');
+const ctx = C.getContext('2d');
+
+function px(ctx, x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+
+// ─────────────────────────────────────────
+//  PIXEL TEXT RENDERER (3x5 chars)
+// ─────────────────────────────────────────
+const PIXEL_FONT = {
+  'H':['10001','10001','11111','10001','10001'],
+  'O':['01110','10001','10001','10001','01110'],
+  'T':['11111','00100','00100','00100','00100'],
+  'C':['01110','10000','10000','10000','01110'],
+  'U':['10001','10001','10001','10001','01110'],
+  'P':['11110','10001','11110','10000','10000'],
+  ' ':['00000','00000','00000','00000','00000'],
+  'S':['01111','10000','01110','00001','11110'],
+  'E':['11111','10000','11110','10000','11111'],
+  'R':['11110','10001','11110','10100','10011'],
+  'A':['01110','10001','11111','10001','10001'],
+  'I':['11111','00100','00100','00100','11111'],
+  'N':['10001','11001','10101','10011','10001'],
+  'G':['01110','10000','10111','10001','01110'],
+  'L':['10000','10000','10000','10000','11111'],
+  'Y':['10001','01010','00100','00100','00100'],
+  'W':['10001','10001','10101','11011','10001'],
+  'K':['10001','10010','11100','10010','10001'],
+  'D':['11100','10010','10001','10010','11100'],
+  'F':['11111','10000','11110','10000','10000'],
+  'B':['11110','10001','11110','10001','11110'],
+  'M':['10001','11011','10101','10001','10001'],
+  'V':['10001','10001','10001','01010','00100'],
+  'J':['00111','00010','00010','10010','01100'],
+  'X':['10001','01010','00100','01010','10001'],
+  'Z':['11111','00010','00100','01000','11111'],
+  '!':['00100','00100','00100','00000','00100'],
+  ':':['00000','00100','00000','00100','00000'],
+  '-':['00000','00000','11111','00000','00000'],
+  '.':['00000','00000','00000','00000','00100'],
+  '0':['01110','10011','10101','11001','01110'],
+  '1':['00100','01100','00100','00100','01110'],
+  '2':['01110','10001','00110','01000','11111'],
+  '3':['11110','00001','01110','00001','11110'],
+  '4':['10001','10001','11111','00001','00001'],
+  '5':['11111','10000','11110','00001','11110'],
+  '6':['01110','10000','11110','10001','01110'],
+  '7':['11111','00001','00010','00100','00100'],
+  '8':['01110','10001','01110','10001','01110'],
+  '9':['01110','10001','01111','00001','01110'],
+};
+
+function drawPixelText(ctx, text, x, y, color, scale) {
+  scale = scale || 1;
+  var cx = x;
+  for (var i = 0; i < text.length; i++) {
+    var ch = text[i].toUpperCase();
+    var glyph = PIXEL_FONT[ch] || PIXEL_FONT[' '];
+    for (var ry = 0; ry < glyph.length; ry++) {
+      for (var rx = 0; rx < glyph[ry].length; rx++) {
+        if (glyph[ry][rx] === '1') {
+          px(ctx, cx + rx * scale, y + ry * scale, scale, scale, color);
+        }
+      }
+    }
+    cx += 6 * scale;
+  }
+}
+
+function lighten(hex, amt) {
+  var c = parseInt(hex.slice(1), 16);
+  var r = Math.min(255, Math.max(0, (c >> 16) + amt));
+  var g = Math.min(255, Math.max(0, ((c >> 8) & 0xff) + amt));
+  var b = Math.min(255, Math.max(0, (c & 0xff) + amt));
+  return '#' + [r, g, b].map(function(v) { return v.toString(16).padStart(2, '0'); }).join('');
+}
+
+// ─────────────────────────────────────────
+//  SCENE DRAWING
+// ─────────────────────────────────────────
+
+// Store hot-cup sign bounds for click detection
+var hotCupRect = null;
+
+function drawScene() {
+  var W = 640, H = 480;
+
+  // Sky - sunset gradient
+  var sky = ctx.createLinearGradient(0, 0, 0, H * 0.58);
+  sky.addColorStop(0,    '#1a0533');
+  sky.addColorStop(0.25, '#6b1560');
+  sky.addColorStop(0.55, '#e8562a');
+  sky.addColorStop(0.8,  '#f9a825');
+  sky.addColorStop(1,    '#ffcc44');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Sun glow
+  drawSun(ctx, 520, 85, 28);
+
+  // Stars
+  var stars = [[40,22],[82,44],[118,14],[205,36],[262,10],[315,27],[352,12],[415,40],[462,18],[558,30],[602,9]];
+  stars.forEach(function(s) { px(ctx, s[0], s[1], 2, 2, '#ffffffcc'); });
+
+  // Clouds
+  drawCloud(ctx, 55, 55, 4);
+  drawCloud(ctx, 275, 38, 3);
+  drawCloud(ctx, 448, 68, 3.5);
+
+  // Background hills
+  drawHills(ctx, W, H);
+
+  // Trees
+  drawTree(ctx, 28, 225, 3);
+  drawTree(ctx, 56, 240, 2.5);
+  drawTree(ctx, 575, 218, 3);
+  drawTree(ctx, 598, 232, 2.5);
+
+  // House
+  drawHouse(ctx, 125, 120);
+
+  // Deck surface
+  drawDeck(ctx, 95, 325, 450, 75);
+
+  // Ping pong table
+  drawPongTable(ctx, 232, 342);
+
+  // Characters
+  drawDudes(ctx);
+
+  // Ground
+  var grass = ctx.createLinearGradient(0, H * 0.83, 0, H);
+  grass.addColorStop(0, '#2d5a1b');
+  grass.addColorStop(1, '#1a3a0a');
+  ctx.fillStyle = grass;
+  ctx.fillRect(0, H * 0.83, W, H * 0.17);
+  for (var gx = 0; gx < W; gx += 8) {
+    px(ctx, gx, H * 0.83, 1, 4, '#3a7a22');
+  }
+
+  // Deck front steps
+  px(ctx, 172, 398, 124, 12, '#a07848');
+  px(ctx, 182, 410, 104, 10, '#8a6030');
+}
+
+function drawSun(ctx, x, y, r) {
+  var grd = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 3.5);
+  grd.addColorStop(0, '#ffee8866');
+  grd.addColorStop(1, 'transparent');
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  // Pixel circle sun
+  ctx.fillStyle = '#fff176';
+  for (var dy = -r; dy <= r; dy += 2) {
+    for (var dx = -r; dx <= r; dx += 2) {
+      if (dx * dx + dy * dy <= r * r) {
+        ctx.fillRect(x + dx, y + dy, 2, 2);
+      }
+    }
+  }
+  // Bright center
+  ctx.fillStyle = '#ffffff';
+  for (var dy2 = -r*0.4; dy2 <= r*0.4; dy2 += 2) {
+    for (var dx2 = -r*0.4; dx2 <= r*0.4; dx2 += 2) {
+      if (dx2*dx2+dy2*dy2 <= (r*0.4)*(r*0.4)) ctx.fillRect(x+dx2, y+dy2, 2, 2);
+    }
+  }
+}
+
+function drawCloud(ctx, x, y, scale) {
+  var s = Math.round(scale * 2);
+  var blocks = [[0,1],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,1],[4,1],[4,0],[3,0]];
+  ctx.fillStyle = '#ffeecc88';
+  blocks.forEach(function(b) { ctx.fillRect(x + b[0]*s, y + b[1]*s, s, s); });
+}
+
+function drawHills(ctx, W, H) {
+  ctx.fillStyle = '#4a2060';
+  ctx.beginPath();
+  ctx.moveTo(0, H * 0.52);
+  ctx.quadraticCurveTo(W * 0.25, H * 0.30, W * 0.5, H * 0.47);
+  ctx.quadraticCurveTo(W * 0.75, H * 0.32, W, H * 0.5);
+  ctx.lineTo(W, H * 0.56);
+  ctx.lineTo(0, H * 0.56);
+  ctx.fill();
+
+  ctx.fillStyle = '#1e4a10';
+  ctx.beginPath();
+  ctx.moveTo(0, H * 0.63);
+  ctx.quadraticCurveTo(W * 0.2, H * 0.46, W * 0.45, H * 0.58);
+  ctx.quadraticCurveTo(W * 0.7, H * 0.43, W, H * 0.60);
+  ctx.lineTo(W, H * 0.70);
+  ctx.lineTo(0, H * 0.70);
+  ctx.fill();
+}
+
+function drawTree(ctx, x, y, scale) {
+  var s = Math.round(scale);
+  px(ctx, x + s*2, y + s*5, s*2, s*5, '#6b3a1f');
+  ctx.fillStyle = '#1a5c0a';
+  ctx.fillRect(x, y + s*2, s*6, s*3);
+  ctx.fillRect(x + s, y + s, s*4, s*3);
+  ctx.fillRect(x + s*2, y, s*2, s*3);
+  px(ctx, x + s, y + s, s, s*2, '#2a8a14');
+}
+
+function drawHouse(ctx, x, y) {
+  // First floor walls
+  px(ctx, x, y + 82, 382, 162, '#c8a96e');
+  for (var sy = y + 82; sy < y + 244; sy += 10) {
+    px(ctx, x, sy, 382, 2, '#b8955a');
+  }
+  // Corner trim
+  px(ctx, x, y + 82, 8, 162, '#a07848');
+  px(ctx, x + 374, y + 82, 8, 162, '#a07848');
+
+  // First floor windows
+  drawWindow(ctx, x + 28, y + 102, 52, 62);
+  drawWindow(ctx, x + 148, y + 102, 52, 62);
+  drawWindow(ctx, x + 268, y + 102, 52, 62);
+
+  // Front door
+  px(ctx, x + 162, y + 162, 52, 82, '#5a3010');
+  px(ctx, x + 166, y + 166, 44, 74, '#6b3a14');
+  px(ctx, x + 170, y + 168, 18, 30, '#7a4418');
+  px(ctx, x + 192, y + 168, 18, 30, '#7a4418');
+  px(ctx, x + 187, y + 198, 6, 6, '#d4a820'); // knob
+  px(ctx, x + 160, y + 160, 56, 84, '#a07848'); // frame (draw behind)
+
+  // Second floor
+  px(ctx, x + 20, y + 22, 342, 62, '#c8a96e');
+  for (var sy2 = y + 22; sy2 < y + 84; sy2 += 10) {
+    px(ctx, x + 20, sy2, 342, 2, '#b8955a');
+  }
+  px(ctx, x + 20, y + 22, 8, 62, '#a07848');
+  px(ctx, x + 354, y + 22, 8, 62, '#a07848');
+
+  // Second floor windows
+  drawWindow(ctx, x + 58, y + 30, 52, 42);
+  drawWindow(ctx, x + 244, y + 30, 52, 42);
+
+  // Center balcony door (second floor)
+  px(ctx, x + 152, y + 22, 78, 62, '#5a3010');
+  px(ctx, x + 156, y + 26, 34, 54, '#7a4418');
+  px(ctx, x + 192, y + 26, 34, 54, '#7a4418');
+  px(ctx, x + 188, y + 50, 4, 8, '#d4a820');
+
+  // Eave soffit
+  px(ctx, x - 8, y + 20, 400, 8, '#a07848');
+
+  // Roof gable
+  ctx.fillStyle = '#4a2d0a';
+  ctx.beginPath();
+  ctx.moveTo(x - 12, y + 22);
+  ctx.lineTo(x + 191, y - 42);
+  ctx.lineTo(x + 394, y + 22);
+  ctx.closePath();
+  ctx.fill();
+
+  // Roof shingles
+  ctx.fillStyle = '#3a2008';
+  for (var row = 0; row < 5; row++) {
+    for (var col = 0; col < 11; col++) {
+      ctx.fillRect(x + col*38 - row*3, y + 14 - row*14, 34, 5);
+    }
+  }
+  px(ctx, x + 82, y - 44, 218, 8, '#2a1800');
+
+  // Chimney
+  px(ctx, x + 308, y - 62, 32, 52, '#8a5a3a');
+  px(ctx, x + 304, y - 68, 40, 10, '#7a4a2a');
+}
+
+function drawWindow(ctx, x, y, w, h) {
+  px(ctx, x - 4, y - 4, w + 8, h + 8, '#a07848');
+  var grd = ctx.createLinearGradient(x, y, x + w, y + h);
+  grd.addColorStop(0, '#aaddff66');
+  grd.addColorStop(0.5, '#ffeebb33');
+  grd.addColorStop(1, '#aaddff66');
+  ctx.fillStyle = grd;
+  ctx.fillRect(x, y, w, h);
+  px(ctx, x + Math.floor(w/2) - 1, y, 2, h, '#ffffff44');
+  px(ctx, x, y + Math.floor(h/2) - 1, w, 2, '#ffffff44');
+  px(ctx, x + 2, y + 2, 6, 4, '#ffffff33');
+}
+
+function drawDeck(ctx, x, y, w, h) {
+  var deck = ctx.createLinearGradient(x, y, x, y + h);
+  deck.addColorStop(0, '#b8926a');
+  deck.addColorStop(1, '#8a6040');
+  ctx.fillStyle = deck;
+  ctx.fillRect(x, y, w, h);
+  for (var bx = x; bx < x + w; bx += 16) {
+    px(ctx, bx, y, 1, h, '#9a7050');
+  }
+  for (var by = y; by < y + h; by += 12) {
+    px(ctx, x, by, w, 1, '#9a7050');
+  }
+  // Railing top
+  px(ctx, x, y, w, 8, '#c8a070');
+  // Balusters
+  for (var bx2 = x + 8; bx2 < x + w - 8; bx2 += 16) {
+    px(ctx, bx2, y + 8, 4, h - 14, '#d4b080');
+  }
+  // Railing bottom
+  px(ctx, x, y + h - 6, w, 6, '#c8a070');
+}
+
+function drawPongTable(ctx, x, y) {
+  var TW = 160, TH = 56, LEG = 26;
+
+  // Legs
+  px(ctx, x + 8,       y + TH, 6, LEG, '#555');
+  px(ctx, x + TW - 14, y + TH, 6, LEG, '#555');
+  px(ctx, x + 8,       y + TH + 12, TW - 16, 3, '#444');
+
+  // Table surface
+  px(ctx, x, y, TW, TH, '#1a6622');
+  px(ctx, x, y, TW, 3, '#2a9932');
+  px(ctx, x, y + TH - 3, TW, 3, '#2a9932');
+  px(ctx, x, y, 3, TH, '#2a9932');
+  px(ctx, x + TW - 3, y, 3, TH, '#2a9932');
+  // Net
+  px(ctx, x + TW/2 - 1, y, 2, TH, '#ffffff88');
+  for (var ny = y + 4; ny < y + TH; ny += 4) {
+    px(ctx, x + TW/2 - 6, ny, 12, 1, '#ffffff22');
+  }
+
+  // Red cups — opponent side (far): triangle of 6
+  var ox = x + 12, oy = y + 5;
+  var cups_opp = [
+    [ox,      oy],
+    [ox + 14, oy],
+    [ox + 28, oy],
+    [ox + 7,  oy + 12],
+    [ox + 21, oy + 12],
+    [ox + 14, oy + 24],
+  ];
+  cups_opp.forEach(function(c) { drawCupAt(ctx, c[0], c[1]); });
+
+  // Red cups — player side: triangle of 6
+  var px2 = x + TW - 44, py2 = y + TH - 34;
+  var cups_pl = [
+    [px2,      py2 + 22],
+    [px2 + 14, py2 + 22],
+    [px2 + 28, py2 + 22],
+    [px2 + 7,  py2 + 10],
+    [px2 + 21, py2 + 10],
+    [px2 + 14, py2],
+  ];
+  cups_pl.forEach(function(c) { drawCupAt(ctx, c[0], c[1]); });
+
+  // HOT CUP sign
+  var sx = x + TW/2 - 28, sy = y + TH + 3;
+  hotCupRect = { x: sx, y: sy, w: 56, h: 16 };
+
+  // String from table
+  px(ctx, x + TW/2 - 1, y + TH, 2, 5, '#aa8844');
+
+  // Sign board
+  px(ctx, sx,     sy,     56, 16, '#c8a820');
+  px(ctx, sx + 1, sy + 1, 54, 14, '#f0d840');
+  px(ctx, sx + 2, sy + 2, 52, 12, '#ffe850');
+
+  // "HOT CUP" text
+  drawPixelText(ctx, 'HOT CUP', sx + 4, sy + 4, '#8b0000', 1);
+}
+
+function drawCupAt(ctx, x, y) {
+  px(ctx, x, y, 12, 9, '#cc2222');
+  px(ctx, x + 1, y, 10, 3, '#ff5555');
+  px(ctx, x + 1, y + 7, 10, 2, '#aa1111');
+  px(ctx, x + 4, y + 2, 2, 2, '#ff9999');
+}
+
+function drawDudes(ctx) {
+  // Left to right across the deck, in front of the table
+  drawDude(ctx, 112, 332, '#f5d5b0', '#3366cc', '#334488', false, '#221100');  // white, blue shirt
+  drawDude(ctx, 200, 330, '#f0c8a0', '#cc3322', '#882211', false, '#221100');  // white, red shirt
+  drawDude(ctx, 408, 329, '#7a4828', '#228844', '#115522', true,  '#110500');  // Sri Lankan, green
+  drawDude(ctx, 492, 332, '#f2cfa8', '#ddaa22', '#997711', false, '#994400');  // white, orange hair
+}
+
+function drawDude(ctx, x, y, skin, shirt, pants, isSriLankan, hairColor) {
+  // Shadow
+  ctx.fillStyle = '#00000033';
+  ctx.beginPath();
+  ctx.ellipse(x + 12, y + 62, 14, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs
+  px(ctx, x + 4,  y + 40, 8, 20, pants);
+  px(ctx, x + 14, y + 40, 8, 20, pants);
+  // Shoes
+  px(ctx, x + 2,  y + 58, 12, 6, '#221100');
+  px(ctx, x + 14, y + 58, 12, 6, '#221100');
+
+  // Body
+  px(ctx, x + 2, y + 20, 22, 22, shirt);
+  px(ctx, x + 4, y + 22, 7, 4, lighten(shirt, 35));
+  px(ctx, x + 9, y + 20, 8, 3, lighten(shirt, 15));
+
+  // Left arm (relaxed)
+  px(ctx, x - 4, y + 22, 8, 14, skin);
+  px(ctx, x - 4, y + 22, 7, 3, shirt);
+  px(ctx, x - 5, y + 34, 9, 7, skin);
+
+  // Right arm (slightly raised / waving)
+  px(ctx, x + 22, y + 18, 8, 14, skin);
+  px(ctx, x + 22, y + 18, 7, 3, shirt);
+  px(ctx, x + 22, y + 30, 9, 7, skin);
+
+  // Neck
+  px(ctx, x + 10, y + 14, 6, 8, skin);
+
+  // Head
+  px(ctx, x + 2,  y - 2,  22, 22, skin);
+  px(ctx, x + 5,  y,      7,  4,  lighten(skin, 18));
+
+  // Ears
+  px(ctx, x,      y + 7,  4, 6, skin);
+  px(ctx, x + 22, y + 7,  4, 6, skin);
+  if (isSriLankan) {
+    px(ctx, x + 1,  y + 8, 2, 4, lighten(skin, -10));
+    px(ctx, x + 23, y + 8, 2, 4, lighten(skin, -10));
+  }
+
+  // Eyes smiling
+  px(ctx, x + 6,  y + 6, 4, 3, '#221100');
+  px(ctx, x + 15, y + 6, 4, 3, '#221100');
+  px(ctx, x + 7,  y + 6, 2, 1, '#fff');
+  px(ctx, x + 16, y + 6, 2, 1, '#fff');
+
+  // Smile mouth
+  px(ctx, x + 5,  y + 14, 2, 2, '#cc5533');
+  px(ctx, x + 7,  y + 16, 10, 2, '#cc5533');
+  px(ctx, x + 17, y + 14, 2, 2, '#cc5533');
+  px(ctx, x + 6,  y + 15, 2, 2, '#ff9977');
+  px(ctx, x + 13, y + 15, 2, 2, '#ff9977');
+
+  // Hair
+  px(ctx, x + 2,  y - 2, 22, 5, hairColor);
+  px(ctx, x + 2,  y - 2, 3, 12, hairColor);
+  px(ctx, x + 21, y - 2, 3, 12, hairColor);
+  if (isSriLankan) {
+    px(ctx, x + 2, y - 4, 22, 4, hairColor);
+  }
+}
+
+// Draw scene
+drawScene();
+
+// ─────────────────────────────────────────
+//  HOT CUP CLICK / HOVER
+// ─────────────────────────────────────────
+C.addEventListener('click', function(e) {
+  var rect = C.getBoundingClientRect();
+  var scaleX = C.width / rect.width;
+  var scaleY = C.height / rect.height;
+  var mx = (e.clientX - rect.left) * scaleX;
+  var my = (e.clientY - rect.top)  * scaleY;
+  if (hotCupRect &&
+      mx >= hotCupRect.x - 6 && mx <= hotCupRect.x + hotCupRect.w + 6 &&
+      my >= hotCupRect.y - 6 && my <= hotCupRect.y + hotCupRect.h + 6) {
+    openGame();
+  }
+});
+
+C.addEventListener('mousemove', function(e) {
+  var rect = C.getBoundingClientRect();
+  var scaleX = C.width / rect.width;
+  var scaleY = C.height / rect.height;
+  var mx = (e.clientX - rect.left) * scaleX;
+  var my = (e.clientY - rect.top)  * scaleY;
+  if (hotCupRect &&
+      mx >= hotCupRect.x - 6 && mx <= hotCupRect.x + hotCupRect.w + 6 &&
+      my >= hotCupRect.y - 6 && my <= hotCupRect.y + hotCupRect.h + 6) {
+    C.style.cursor = 'pointer';
+  } else {
+    C.style.cursor = 'default';
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  BEER PONG MINI-GAME
+// ═══════════════════════════════════════════════════════
+var GC = document.getElementById('game');
+var gctx = GC.getContext('2d');
+var GW = GC.width, GH = GC.height;
+var gameState = null;
+
+function openGame() {
+  document.getElementById('game-overlay').classList.add('active');
+  initGame();
+}
+
+function closeGame() {
+  document.getElementById('game-overlay').classList.remove('active');
+  if (gameState) { gameState.running = false; gameState = null; }
+}
+
+function initGame() {
+  if (gameState) { gameState.running = false; }
+
+  // Opponent cups — triangle at top, 6 cups
+  var oppCups = [];
+  var ox = 160, oy = 28;
+  var oppLayout = [[0,0],[1,0],[2,0],[0,1],[1,1],[0,2]];
+  oppLayout.forEach(function(c) {
+    oppCups.push({ x: ox + c[0]*22, y: oy + c[1]*22, hit: false });
+  });
+
+  // Player cups — triangle at bottom
+  var plCups = [];
+  var plx = 240, ply = GH - 72;
+  var plLayout = [[0,0],[1,0],[2,0],[0,-1],[1,-1],[0,-2]];
+  plLayout.forEach(function(c) {
+    plCups.push({ x: plx + c[0]*22, y: ply + c[1]*22, hit: false });
+  });
+
+  gameState = {
+    running: true,
+    score: 0,
+    balls: 5,
+    playerX: GW/2 - 10,
+    playerVX: 0,
+    ball: null,
+    oppCups: oppCups,
+    plCups: plCups,
+    particles: [],
+    msg: '',
+    msgTimer: 0,
+    phase: 'play',
+    animFrame: 0,
+    keys: {}
   };
 
-  // ── World ─────────────────────────────────────────────
-  const W = canvas.width, H = canvas.height;
-  const GRAVITY = 0.55;
-  const JUMP_FORCE = -13;
-  const SPEED = 4;
+  document.addEventListener('keydown', gameKeyDown);
+  document.addEventListener('keyup', gameKeyUp);
+  GC.addEventListener('click', gameCanvasClick);
+  GC.addEventListener('touchstart', gameTouchStart, { passive: false });
 
-  // Platforms: [x, y, w, h, label]
-  const platforms = [
-    // ground
-    { x: 0,   y: 340, w: 800, h: 60, color: COL.floor },
-    // counter
-    { x: 80,  y: 270, w: 220, h: 18, color: COL.counter },
-    // stools
-    { x: 95,  y: 300, w: 30,  h: 40, color: COL.stool, isStool: true },
-    { x: 145, y: 300, w: 30,  h: 40, color: COL.stool, isStool: true },
-    { x: 195, y: 300, w: 30,  h: 40, color: COL.stool, isStool: true },
-    { x: 245, y: 300, w: 30,  h: 40, color: COL.stool, isStool: true },
-    // booth shelf
-    { x: 480, y: 240, w: 160, h: 16, color: COL.counter },
-    // pie display
-    { x: 380, y: 285, w: 80,  h: 55, color: '#c9a87c' },
-    // high shelf
-    { x: 580, y: 175, w: 140, h: 14, color: COL.counter },
-    // small crate
-    { x: 650, y: 310, w: 50,  h: 30, color: COL.platform },
-  ];
+  updateGameUI();
+  requestAnimationFrame(gameLoop);
+}
 
-  // Collectible tokens
-  let tokens = [
-    { x: 110, y: 250, collected: false },
-    { x: 160, y: 250, collected: false },
-    { x: 510, y: 220, collected: false },
-    { x: 560, y: 220, collected: false },
-    { x: 610, y: 155, collected: false },
-    { x: 660, y: 155, collected: false },
-    { x: 400, y: 315, collected: false },
-  ];
-  let score = 0;
+function gameKeyDown(e) {
+  if (!gameState) return;
+  gameState.keys[e.code] = true;
+  if (e.code === 'Space') { e.preventDefault(); throwBall(); }
+}
+function gameKeyUp(e) {
+  if (gameState) gameState.keys[e.code] = false;
+}
 
-  // Player
-  const player = {
-    x: 60, y: 280,
-    w: 22, h: 30,
-    vx: 0, vy: 0,
-    onGround: false,
-    jumpsLeft: 2,
-    facing: 1,
-  };
-
-  // Input
-  const keys = {};
-  document.addEventListener('keydown', e => { keys[e.code] = true; });
-  document.addEventListener('keyup',   e => { keys[e.code] = false; });
-
-  // ── Physics helpers ───────────────────────────────────
-  function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
-    return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+function gameCanvasClick(e) {
+  if (!gameState) return;
+  // If end-screen, check replay
+  if (gameState.phase !== 'play') {
+    var r = GC.getBoundingClientRect();
+    var mx = (e.clientX - r.left) * (GW / r.width);
+    var my = (e.clientY - r.top)  * (GH / r.height);
+    if (mx > GW/2 - 70 && mx < GW/2 + 70 && my > GH - 55 && my < GH - 26) {
+      initGame();
+      return;
+    }
   }
+  throwBall();
+}
 
-  function resolveCollisions() {
-    player.onGround = false;
-    for (const p of platforms) {
-      if (!rectOverlap(player.x, player.y, player.w, player.h, p.x, p.y, p.w, p.h)) continue;
-      // Only land on tops of solid surfaces (not stool legs — treat them as decoration)
-      if (p.isStool) continue;
+function gameTouchStart(e) {
+  e.preventDefault();
+  if (!gameState) return;
+  if (gameState.phase !== 'play') {
+    gameCanvasClick(e.touches[0]);
+    return;
+  }
+  var r = GC.getBoundingClientRect();
+  var tx = (e.touches[0].clientX - r.left) * (GW / r.width);
+  if (tx < GW / 3) {
+    gameState.keys['ArrowLeft'] = true;
+    setTimeout(function() { if (gameState) gameState.keys['ArrowLeft'] = false; }, 200);
+  } else if (tx > GW * 2/3) {
+    gameState.keys['ArrowRight'] = true;
+    setTimeout(function() { if (gameState) gameState.keys['ArrowRight'] = false; }, 200);
+  }
+  throwBall();
+}
 
-      const overlapBottom = (player.y + player.h) - p.y;
-      const overlapTop    = (p.y + p.h) - player.y;
-      const overlapLeft   = (player.x + player.w) - p.x;
-      const overlapRight  = (p.x + p.w) - player.x;
-      const minOverlap = Math.min(overlapBottom, overlapTop, overlapLeft, overlapRight);
+var _lastGameLoopId = 0;
+function gameLoop() {
+  var gs = gameState;
+  if (!gs || !gs.running) return;
+  gs.animFrame++;
+  updateGame(gs);
+  renderGame(gs);
+  if (gs.running) requestAnimationFrame(gameLoop);
+}
 
-      if (minOverlap === overlapBottom && player.vy >= 0) {
-        player.y = p.y - player.h;
-        player.vy = 0;
-        player.onGround = true;
-        player.jumpsLeft = 2;
-      } else if (minOverlap === overlapTop && player.vy < 0) {
-        player.y = p.y + p.h;
-        player.vy = 0;
-      } else if (minOverlap === overlapLeft) {
-        player.x = p.x - player.w;
-        player.vx = 0;
-      } else if (minOverlap === overlapRight) {
-        player.x = p.x + p.w;
-        player.vx = 0;
+function updateGame(gs) {
+  if (gs.phase === 'play') {
+    // Move player
+    if (gs.keys['ArrowLeft'])  gs.playerVX -= 1.5;
+    if (gs.keys['ArrowRight']) gs.playerVX += 1.5;
+    gs.playerVX *= 0.7;
+    gs.playerX += gs.playerVX;
+    gs.playerX = Math.max(8, Math.min(GW - 36, gs.playerX));
+
+    // Move ball
+    if (gs.ball && gs.ball.active) {
+      gs.ball.x += gs.ball.vx;
+      gs.ball.y += gs.ball.vy;
+      gs.ball.vy += 0.22; // gravity
+
+      // Check cup collisions
+      var hit = false;
+      gs.oppCups.forEach(function(cup) {
+        if (cup.hit || hit) return;
+        if (gs.ball.x + 4 > cup.x && gs.ball.x - 4 < cup.x + 14 &&
+            gs.ball.y + 4 > cup.y && gs.ball.y - 4 < cup.y + 14) {
+          cup.hit = true;
+          gs.ball.active = false;
+          gs.score += 100;
+          gs.msg = 'NICE SHOT!';
+          gs.msgTimer = 70;
+          spawnParticles(gs, cup.x + 7, cup.y + 6);
+          hit = true;
+          updateGameUI();
+          checkEndCondition(gs);
+        }
+      });
+
+      // Out of bounds
+      if (!hit && gs.ball.active &&
+          (gs.ball.y > GH + 30 || gs.ball.y < -50 || gs.ball.x < -30 || gs.ball.x > GW + 30)) {
+        gs.ball.active = false;
+        gs.ball = null;
+        checkEndCondition(gs);
       }
     }
   }
 
-  // ── Drawing helpers ───────────────────────────────────
-  function drawBackground() {
-    // Sky / wall
-    ctx.fillStyle = COL.sky;
-    ctx.fillRect(0, 0, W, H);
-
-    // Tile floor pattern
-    for (let tx = 0; tx < W; tx += 20) {
-      for (let ty = 340; ty < H; ty += 20) {
-        ctx.fillStyle = (Math.floor(tx/20 + ty/20)) % 2 === 0 ? COL.tile : COL.tileDark;
-        ctx.fillRect(tx, ty, 20, 20);
-      }
-    }
-
-    // Window
-    ctx.fillStyle = COL.window;
-    ctx.fillRect(310, 60, 160, 120);
-    ctx.strokeStyle = COL.windowFr;
-    ctx.lineWidth = 6;
-    ctx.strokeRect(310, 60, 160, 120);
-    // Window cross
-    ctx.beginPath();
-    ctx.moveTo(390, 60); ctx.lineTo(390, 180);
-    ctx.moveTo(310, 120); ctx.lineTo(470, 120);
-    ctx.stroke();
-    // Night sky through window
-    for (let s = 0; s < 12; s++) {
-      const sx = 318 + Math.sin(s * 137) * 60 + 60;
-      const sy = 68 + Math.cos(s * 97) * 20 + 20;
-      if (sx > 315 && sx < 465 && sy > 65 && sy < 175) {
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(sx, sy, 2, 2);
-      }
-    }
-
-    // Neon sign
-    ctx.save();
-    ctx.shadowColor = COL.neon;
-    ctx.shadowBlur = 18;
-    ctx.fillStyle = COL.sign;
-    ctx.fillRect(30, 30, 240, 40);
-    ctx.fillStyle = COL.neon;
-    ctx.font = 'bold 22px "Courier New"';
-    ctx.textAlign = 'center';
-    ctx.fillText("MEL'S SILVER SPOON", 150, 57);
-    ctx.restore();
-
-    // Jukebox (right side)
-    ctx.fillStyle = '#3a1a0a';
-    ctx.fillRect(720, 200, 70, 140);
-    ctx.fillStyle = '#c94040';
-    ctx.fillRect(725, 205, 60, 50);
-    ctx.fillStyle = COL.neon;
-    ctx.fillRect(728, 210, 54, 8);
-    ctx.fillRect(728, 222, 54, 4);
-    ctx.fillRect(728, 230, 54, 4);
-    ctx.fillStyle = '#0a1a2a';
-    ctx.beginPath();
-    ctx.arc(755, 270, 22, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Hanging lamp
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(390, 0); ctx.lineTo(390, 50); ctx.stroke();
-    ctx.fillStyle = COL.neon;
-    ctx.beginPath();
-    ctx.ellipse(390, 55, 22, 10, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.save();
-    ctx.shadowColor = '#ffe08888';
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = '#ffe088';
-    ctx.beginPath();
-    ctx.ellipse(390, 60, 15, 6, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  function drawPlatforms() {
-    for (const p of platforms) {
-      if (p.isStool) {
-        // Draw stool: leg + seat
-        ctx.fillStyle = COL.chrome;
-        ctx.fillRect(p.x + 10, p.y, 10, p.h); // leg
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.ellipse(p.x + 15, p.y, 18, 7, 0, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (p.y === 340) {
-        // ground — drawn in background
-      } else {
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, p.w, p.h);
-        // Chrome edge
-        ctx.fillStyle = COL.chrome;
-        ctx.fillRect(p.x, p.y, p.w, 4);
-      }
-    }
-
-    // Pie display case detail
-    ctx.fillStyle = '#e8d0a0';
-    ctx.fillRect(385, 290, 70, 45);
-    ctx.strokeStyle = '#c9a87c';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(385, 290, 70, 45);
-    // Pie slice
-    ctx.fillStyle = '#c95b2a';
-    ctx.beginPath();
-    ctx.moveTo(420, 320);
-    ctx.arc(420, 320, 18, -0.5, Math.PI + 0.5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#f5c842';
-    ctx.fillRect(408, 308, 24, 5);
-  }
-
-  function drawTokens() {
-    const t = Date.now() / 400;
-    tokens.forEach(tok => {
-      if (tok.collected) return;
-      const bob = Math.sin(t + tok.x) * 3;
-      ctx.save();
-      ctx.shadowColor = COL.token;
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = COL.token;
-      ctx.beginPath();
-      ctx.arc(tok.x, tok.y + bob, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fff8';
-      ctx.beginPath();
-      ctx.arc(tok.x - 2, tok.y + bob - 2, 3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    });
-  }
-
-  function drawPlayer() {
-    const { x, y, w, h, facing } = player;
-    ctx.save();
-    ctx.translate(x + w/2, y + h/2);
-    if (facing < 0) ctx.scale(-1, 1);
-
-    // Body
-    ctx.fillStyle = COL.player;
-    ctx.fillRect(-w/2, -h/2 + 8, w, h - 8);
-
-    // Head
-    ctx.fillStyle = COL.playerHd;
-    ctx.fillRect(-w/2 + 2, -h/2, w - 4, 14);
-
-    // Eye
-    ctx.fillStyle = '#333';
-    ctx.fillRect(w/2 - 8, -h/2 + 4, 4, 4);
-
-    // Apron (diner theme!)
-    ctx.fillStyle = '#fff8';
-    ctx.fillRect(-w/2 + 4, -h/2 + 16, w - 8, h - 22);
-
-    ctx.restore();
-  }
-
-  function drawHUD() {
-    ctx.fillStyle = '#000000aa';
-    ctx.fillRect(0, 0, W, 28);
-    ctx.fillStyle = COL.neon;
-    ctx.font = 'bold 14px "Courier New"';
-    ctx.textAlign = 'left';
-    ctx.fillText(`TOKENS: ${score} / ${tokens.length}`, 12, 18);
-    ctx.textAlign = 'center';
-    if (score === tokens.length) {
-      ctx.save();
-      ctx.shadowColor = COL.neon;
-      ctx.shadowBlur = 20;
-      ctx.fillText("★  ALL MEMORIES RESTORED! YOU WIN!  ★", W/2, 18);
-      ctx.restore();
-    } else {
-      ctx.fillStyle = '#888';
-      ctx.fillText('UPSTATE DINER DASH  —  hello world build', W/2, 18);
-    }
-    ctx.textAlign = 'right';
-    ctx.fillStyle = COL.neon;
-    ctx.fillText('♪ jukebox jazz', W - 12, 18);
-  }
-
-  // ── Jump handler ──────────────────────────────────────
-  let jumpPressed = false;
-  document.addEventListener('keydown', e => {
-    if ((e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') && !jumpPressed) {
-      jumpPressed = true;
-      if (player.jumpsLeft > 0) {
-        player.vy = JUMP_FORCE;
-        player.jumpsLeft--;
-      }
-    }
-  });
-  document.addEventListener('keyup', e => {
-    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') jumpPressed = false;
+  // Particles
+  gs.particles = gs.particles.filter(function(p) { return p.life > 0; });
+  gs.particles.forEach(function(p) {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life--;
   });
 
-  // ── Game loop ─────────────────────────────────────────
-  let last = 0;
-  function loop(ts) {
-    const dt = Math.min((ts - last) / 16.67, 3);
-    last = ts;
+  if (gs.msgTimer > 0) gs.msgTimer--;
+}
 
-    // Input
-    player.vx = 0;
-    if (keys['ArrowLeft']  || keys['KeyA']) { player.vx = -SPEED; player.facing = -1; }
-    if (keys['ArrowRight'] || keys['KeyD']) { player.vx =  SPEED; player.facing =  1; }
-
-    // Physics
-    player.vy += GRAVITY * dt;
-    player.x  += player.vx * dt;
-    player.y  += player.vy * dt;
-
-    // Bounds
-    if (player.x < 0) player.x = 0;
-    if (player.x + player.w > W) player.x = W - player.w;
-    if (player.y + player.h > H) { player.y = H - player.h; player.vy = 0; player.onGround = true; player.jumpsLeft = 2; }
-
-    resolveCollisions();
-
-    // Token collection
-    tokens.forEach(tok => {
-      if (!tok.collected && Math.abs(player.x + player.w/2 - tok.x) < 18 && Math.abs(player.y + player.h/2 - tok.y) < 18) {
-        tok.collected = true;
-        score++;
-      }
-    });
-
-    // Draw
-    drawBackground();
-    drawPlatforms();
-    drawTokens();
-    drawPlayer();
-    drawHUD();
-
-    requestAnimationFrame(loop);
+function checkEndCondition(gs) {
+  if (gs.oppCups.every(function(c) { return c.hit; })) {
+    gs.phase = 'win';
+    gs.score += gs.balls * 50;
+    gs.msg = 'YOU WIN!';
+    gs.msgTimer = 999;
+    updateGameUI();
+  } else if (gs.balls === 0 && (!gs.ball || !gs.ball.active)) {
+    gs.phase = 'lose';
+    gs.msg = 'GAME OVER';
+    gs.msgTimer = 999;
+    updateGameUI();
   }
-  requestAnimationFrame(loop);
-  </script>
+}
+
+function throwBall() {
+  var gs = gameState;
+  if (!gs || gs.phase !== 'play') return;
+  if (gs.ball && gs.ball.active) return;
+  if (gs.balls <= 0) return;
+
+  var startX = gs.playerX + 11;
+  var startY = GH - 108;
+
+  // Pick a target cup (random from remaining)
+  var targets = gs.oppCups.filter(function(c) { return !c.hit; });
+  if (!targets.length) return;
+  var target = targets[Math.floor(Math.random() * targets.length)];
+
+  // Add some random spread — skill based
+  var spread = (Math.random() - 0.5) * 40;
+  var tx = target.x + 7 + spread;
+  var ty = target.y + 5;
+
+  var frames = 30;
+  var dx = tx - startX;
+  var dy = ty - startY;
+  // Account for gravity: y = startY + vy*t + 0.5*g*t^2, solve for vy
+  var g = 0.22;
+  var vy = (dy - 0.5 * g * frames * frames) / frames;
+  var vx = dx / frames;
+
+  gs.balls--;
+  gs.ball = { x: startX, y: startY, vx: vx, vy: vy, active: true };
+  updateGameUI();
+}
+
+function spawnParticles(gs, x, y) {
+  for (var i = 0; i < 12; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    var speed = 1.5 + Math.random() * 3.5;
+    var colors = ['#cc2222','#ff5555','#ffdd57','#ffffff','#ff9900'];
+    gs.particles.push({
+      x: x, y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 35,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    });
+  }
+}
+
+function renderGame(gs) {
+  // Background
+  var bg = gctx.createLinearGradient(0, 0, 0, GH);
+  bg.addColorStop(0, '#1a0f28');
+  bg.addColorStop(1, '#2a1808');
+  gctx.fillStyle = bg;
+  gctx.fillRect(0, 0, GW, GH);
+
+  // Wall paneling
+  gctx.fillStyle = '#22143a';
+  for (var wx = 0; wx < GW; wx += 40) {
+    gctx.fillRect(wx, 0, 1, GH * 0.55);
+  }
+
+  // Table
+  var ty = GH * 0.38;
+  var tw = GW - 40;
+  px(gctx, 20, ty, tw, 64, '#1a6622');
+  px(gctx, 20, ty, tw, 3, '#2a9932');
+  px(gctx, 20, ty + 61, tw, 3, '#2a9932');
+  px(gctx, 20, ty, 3, 64, '#2a9932');
+  px(gctx, GW - 23, ty, 3, 64, '#2a9932');
+  // Center line / net
+  px(gctx, GW/2 - 1, ty, 2, 64, '#ffffff88');
+  for (var ny = ty + 4; ny < ty + 64; ny += 4) {
+    px(gctx, GW/2 - 8, ny, 16, 1, '#ffffff22');
+  }
+
+  // Table legs
+  px(gctx, 28,      ty + 64, 6, 28, '#555');
+  px(gctx, GW - 34, ty + 64, 6, 28, '#555');
+  px(gctx, 28,      ty + 74, GW - 60, 3, '#444');
+
+  // Floor
+  px(gctx, 0, ty + 92, GW, GH - ty - 92, '#3a2010');
+  gctx.fillStyle = '#4a2a14';
+  for (var fx = 0; fx < GW; fx += 20) { gctx.fillRect(fx, ty + 92, 1, GH - ty - 92); }
+  for (var fy = ty + 92; fy < GH; fy += 20) { gctx.fillRect(0, fy, GW, 1); }
+
+  // Opponent cups
+  gs.oppCups.forEach(function(c) {
+    if (c.hit) {
+      // empty ring
+      gctx.strokeStyle = '#11551144';
+      gctx.lineWidth = 1;
+      gctx.strokeRect(c.x + 1, c.y + 1, 12, 8);
+      return;
+    }
+    px(gctx, c.x, c.y, 14, 10, '#cc2222');
+    px(gctx, c.x + 2, c.y, 10, 3, '#ff5555');
+    px(gctx, c.x + 1, c.y + 8, 12, 2, '#aa1111');
+    px(gctx, c.x + 4, c.y + 2, 3, 2, '#ff9999');
+  });
+
+  // Player side cups
+  gs.plCups.forEach(function(c) {
+    px(gctx, c.x, c.y, 14, 10, '#2255bb');
+    px(gctx, c.x + 2, c.y, 10, 3, '#4477ff');
+    px(gctx, c.x + 1, c.y + 8, 12, 2, '#113399');
+    px(gctx, c.x + 4, c.y + 2, 3, 2, '#88aaff');
+  });
+
+  // Player character
+  drawGameDude(gctx, gs.playerX, GH - 112);
+
+  // Aim dotted line (when no ball in flight)
+  if (gs.phase === 'play' && (!gs.ball || !gs.ball.active) && gs.balls > 0) {
+    var targets = gs.oppCups.filter(function(c) { return !c.hit; });
+    if (targets.length) {
+      var t = targets[0];
+      gctx.setLineDash([3, 4]);
+      gctx.strokeStyle = '#ffffff22';
+      gctx.lineWidth = 1;
+      gctx.beginPath();
+      gctx.moveTo(gs.playerX + 11, GH - 108);
+      gctx.lineTo(t.x + 7, t.y + 5);
+      gctx.stroke();
+      gctx.setLineDash([]);
+    }
+  }
+
+  // Ball in flight
+  if (gs.ball && gs.ball.active) {
+    gctx.fillStyle = '#f0f0f0';
+    gctx.beginPath();
+    gctx.arc(gs.ball.x, gs.ball.y, 5, 0, Math.PI * 2);
+    gctx.fill();
+    gctx.fillStyle = '#cccccc';
+    gctx.beginPath();
+    gctx.arc(gs.ball.x - 1, gs.ball.y - 1, 2, 0, Math.PI * 2);
+    gctx.fill();
+  }
+
+  // Particles
+  gs.particles.forEach(function(p) {
+    gctx.fillStyle = p.color;
+    gctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  });
+
+  // Message
+  if (gs.msgTimer > 0 && gs.phase === 'play') {
+    gctx.fillStyle = '#00000099';
+    gctx.fillRect(GW/2 - 80, GH/2 - 20, 160, 32);
+    drawPixelText(gctx, gs.msg, GW/2 - gs.msg.length * 4, GH/2 - 14, '#ffdd57', 2);
+  }
+
+  // End screen
+  if (gs.phase === 'win' || gs.phase === 'lose') {
+    gctx.fillStyle = '#000000bb';
+    gctx.fillRect(0, 0, GW, GH);
+
+    var title = gs.phase === 'win' ? 'YOU WIN!' : 'GAME OVER';
+    var titleColor = gs.phase === 'win' ? '#ffdd57' : '#ff4444';
+    drawPixelText(gctx, title, GW/2 - title.length * 5, GH/2 - 40, titleColor, 3);
+
+    var scoreStr = 'SCORE: ' + gs.score;
+    drawPixelText(gctx, scoreStr, GW/2 - scoreStr.length * 3, GH/2 + 10, '#ffffff', 2);
+
+    // Replay button
+    gctx.fillStyle = '#224422';
+    gctx.fillRect(GW/2 - 70, GH - 55, 140, 28);
+    gctx.strokeStyle = '#44aa44';
+    gctx.lineWidth = 2;
+    gctx.strokeRect(GW/2 - 70, GH - 55, 140, 28);
+    drawPixelText(gctx, 'PLAY AGAIN', GW/2 - 30, GH - 48, '#88ff88', 1);
+  }
+
+  // HUD cups remaining
+  var remaining = gs.oppCups.filter(function(c) { return !c.hit; }).length;
+  drawPixelText(gctx, 'CUPS: ' + remaining, 8, 8, '#aaddff', 1);
+}
+
+function drawGameDude(ctx, x, y) {
+  // Mini dude (character 1 — blue shirt)
+  var skin = '#f5d5b0', shirt = '#3366cc', pants = '#334488';
+  // shadow
+  ctx.fillStyle = '#00000033';
+  ctx.beginPath();
+  ctx.ellipse(x + 11, y + 44, 10, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // legs
+  px(ctx, x + 3,  y + 30, 6, 12, pants);
+  px(ctx, x + 11, y + 30, 6, 12, pants);
+  // shoes
+  px(ctx, x + 1,  y + 40, 8, 5, '#221100');
+  px(ctx, x + 11, y + 40, 8, 5, '#221100');
+  // body
+  px(ctx, x + 1, y + 14, 20, 18, shirt);
+  // arms
+  px(ctx, x - 4, y + 16, 7, 10, skin);
+  px(ctx, x - 4, y + 16, 6, 3, shirt);
+  px(ctx, x + 19, y + 12, 7, 10, skin);
+  px(ctx, x + 19, y + 12, 6, 3, shirt);
+  // neck
+  px(ctx, x + 8, y + 10, 6, 6, skin);
+  // head
+  px(ctx, x + 2, y, 18, 14, skin);
+  // hair
+  px(ctx, x + 2, y, 18, 4, '#221100');
+  px(ctx, x + 2, y, 3, 10, '#221100');
+  px(ctx, x + 17, y, 3, 10, '#221100');
+  // eyes
+  px(ctx, x + 5,  y + 5, 3, 2, '#221100');
+  px(ctx, x + 13, y + 5, 3, 2, '#221100');
+  px(ctx, x + 5,  y + 5, 1, 1, '#fff');
+  px(ctx, x + 14, y + 5, 1, 1, '#fff');
+  // smile
+  px(ctx, x + 5,  y + 9, 2, 2, '#cc5533');
+  px(ctx, x + 7,  y + 11, 8, 2, '#cc5533');
+  px(ctx, x + 15, y + 9, 2, 2, '#cc5533');
+}
+
+function updateGameUI() {
+  if (!gameState) return;
+  document.getElementById('score-display').textContent = 'SCORE: ' + gameState.score;
+  document.getElementById('shots-display').textContent = 'BALLS: ' + gameState.balls;
+}
+</script>
 </body>
 </html>
