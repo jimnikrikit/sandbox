@@ -554,7 +554,7 @@ function drawCupAt(ctx, x, y) {
 function drawDudes(ctx) {
   // Left to right across the deck, in front of the table
   drawDude(ctx, 112, 332, '#f5d5b0', '#3366cc', '#334488', false, '#221100');  // white, blue shirt
-  drawDude(ctx, 200, 330, '#f0c8a0', '#cc3322', '#882211', false, '#221100');  // white, red shirt
+  drawDude(ctx, 200, 330, '#f0c8a0', '#cc3322', '#882211', false, null);       // white, red shirt (bald)
   drawDude(ctx, 408, 329, '#7a4828', '#228844', '#115522', true,  '#110500');  // Sri Lankan, green
   drawDude(ctx, 492, 332, '#f2cfa8', '#ddaa22', '#997711', false, '#994400');  // white, orange hair
 }
@@ -617,11 +617,13 @@ function drawDude(ctx, x, y, skin, shirt, pants, isSriLankan, hairColor) {
   px(ctx, x + 13, y + 15, 2, 2, '#ff9977');
 
   // Hair
-  px(ctx, x + 2,  y - 2, 22, 5, hairColor);
-  px(ctx, x + 2,  y - 2, 3, 12, hairColor);
-  px(ctx, x + 21, y - 2, 3, 12, hairColor);
-  if (isSriLankan) {
-    px(ctx, x + 2, y - 4, 22, 4, hairColor);
+  if (hairColor) {
+    px(ctx, x + 2,  y - 2, 22, 5, hairColor);
+    px(ctx, x + 2,  y - 2, 3, 12, hairColor);
+    px(ctx, x + 21, y - 2, 3, 12, hairColor);
+    if (isSriLankan) {
+      px(ctx, x + 2, y - 4, 22, 4, hairColor);
+    }
   }
 }
 
