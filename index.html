@@ -295,11 +295,11 @@ function drawScene() {
   // House
   drawHouse(ctx, 125, 120);
 
-  // Deck surface
-  drawDeck(ctx, 95, 325, 450, 75);
+  // Deck surface (second floor)
+  drawDeck(ctx, 95, 204, 450, 75);
 
   // Ping pong table
-  drawPongTable(ctx, 232, 342);
+  drawPongTable(ctx, 232, 221);
 
   // Characters
   drawDudes(ctx);
@@ -314,14 +314,16 @@ function drawScene() {
     px(ctx, gx, H * 0.83, 1, 4, '#3a7a22');
   }
 
-  // Deck front steps
-  px(ctx, 172, 398, 124, 12, '#a07848');
-  px(ctx, 182, 410, 104, 10, '#8a6030');
+  // Deck support columns (second floor overhang down to ground)
+  px(ctx, 108, 279, 12, 120, '#9a7040');
+  px(ctx, 238, 279, 12, 120, '#9a7040');
+  px(ctx, 388, 279, 12, 120, '#9a7040');
+  px(ctx, 518, 279, 12, 120, '#9a7040');
 
   // HOT CUP sign (drawn last so nothing covers it)
   if (hotCupRect) {
     var sx = hotCupRect.x, sy = hotCupRect.y, sw = hotCupRect.w, sh = hotCupRect.h;
-    px(ctx, 312, 398, 2, 6, '#aa8844');  // string
+    px(ctx, 312, 277, 2, 6, '#aa8844');  // string
     px(ctx, sx - 2, sy - 2, sw + 4, sh + 4, '#884400');
     px(ctx, sx,     sy,     sw, sh, '#c8a820');
     px(ctx, sx + 1, sy + 1, sw - 2, sh - 2, '#f0d840');
@@ -554,10 +556,10 @@ function drawCupAt(ctx, x, y) {
 
 function drawDudes(ctx) {
   // Left to right across the deck, in front of the table
-  drawDude(ctx, 112, 332, '#f5d5b0', '#3366cc', '#334488', false, '#221100');  // white, blue shirt
-  drawDude(ctx, 200, 330, '#f0c8a0', '#cc3322', '#882211', false, null);       // white, red shirt (bald)
-  drawDude(ctx, 408, 329, '#7a4828', '#228844', '#115522', true,  '#110500');  // Sri Lankan, green
-  drawDude(ctx, 492, 332, '#f2cfa8', '#ddaa22', '#997711', false, '#994400');  // white, orange hair
+  drawDude(ctx, 112, 211, '#f5d5b0', '#3366cc', '#334488', false, '#221100');  // white, blue shirt
+  drawDude(ctx, 200, 209, '#f0c8a0', '#cc3322', '#882211', false, null);       // white, red shirt (bald)
+  drawDude(ctx, 408, 208, '#7a4828', '#228844', '#115522', true,  '#110500');  // Sri Lankan, green
+  drawDude(ctx, 492, 211, '#f2cfa8', '#ddaa22', '#997711', false, '#994400');  // white, orange hair
 }
 
 function drawDude(ctx, x, y, skin, shirt, pants, isSriLankan, hairColor) {
