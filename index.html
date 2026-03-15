@@ -504,27 +504,27 @@ function drawPongTable(ctx, x, y) {
     px(ctx, x + TW/2 - 6, ny, 12, 1, '#ffffff22');
   }
 
-  // Red cups — opponent side (far): triangle of 6
+  // Red cups — opponent side (far): triangle of 6, rotated 90° CCW (base on left, apex right)
   var ox = x + 12, oy = y + 5;
   var cups_opp = [
     [ox,      oy],
-    [ox + 14, oy],
-    [ox + 28, oy],
-    [ox + 7,  oy + 12],
-    [ox + 21, oy + 12],
-    [ox + 14, oy + 24],
+    [ox,      oy + 12],
+    [ox,      oy + 24],
+    [ox + 13, oy + 6],
+    [ox + 13, oy + 18],
+    [ox + 26, oy + 12],
   ];
   cups_opp.forEach(function(c) { drawCupAt(ctx, c[0], c[1]); });
 
-  // Red cups — player side: triangle of 6
-  var px2 = x + TW - 44, py2 = y + TH - 34;
+  // Red cups — player side: triangle of 6, rotated 90° CCW (apex left, base on right)
+  var px2 = x + TW - 44, py2 = y + TH - 35;
   var cups_pl = [
-    [px2,      py2 + 22],
-    [px2 + 14, py2 + 22],
-    [px2 + 28, py2 + 22],
-    [px2 + 7,  py2 + 10],
-    [px2 + 21, py2 + 10],
-    [px2 + 14, py2],
+    [px2 + 26, py2],
+    [px2 + 26, py2 + 12],
+    [px2 + 26, py2 + 24],
+    [px2 + 13, py2 + 6],
+    [px2 + 13, py2 + 18],
+    [px2,      py2 + 12],
   ];
   cups_pl.forEach(function(c) { drawCupAt(ctx, c[0], c[1]); });
 
